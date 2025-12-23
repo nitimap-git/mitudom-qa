@@ -9,11 +9,11 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const router = useRouter()
 
-  const handleLogin = (e) => {
+  const handleLogin = (e: any) => {
     e.preventDefault()
 
     // 🔑 ตั้งรหัสผ่านตรงนี้ครับ
-    if (password === '1234') { 
+    if (password === '1914moo1') { 
       sessionStorage.setItem('isLoggedIn', 'true')
       router.push('/admin') 
     } else {
