@@ -2,9 +2,10 @@
 
 import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
-import { useEffect, useState, Fragment } from 'react' // <--- 1. เพิ่ม Fragment ตรงนี้
+import { useEffect, useState, Fragment } from 'react'
 import { useParams } from 'next/navigation'
 
+// สร้าง Client สำหรับเชื่อมต่อ Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -18,6 +19,7 @@ export default function StandardDetail() {
   const [indicators, setIndicators] = useState<any[]>([])
   const [expandedAlbums, setExpandedAlbums] = useState<Record<string, boolean>>({})
 
+  // 1. ดึงข้อมูลมาตรฐานและตัวบ่งชี้
   useEffect(() => {
     async function fetchData() {
       const { data: std } = await supabase.from('standards').select('*').eq('id', id).single()
@@ -32,10 +34,12 @@ export default function StandardDetail() {
     if (id) fetchData()
   }, [id])
 
+  // ฟังก์ชันสลับการกาง/หุบอัลบั้ม
   const toggleAlbum = (docId: string) => {
     setExpandedAlbums(prev => ({ ...prev, [docId]: !prev[docId] }))
   }
 
+  // ฟังก์ชันเลือกปุ่มแสดงผล (PDF / รูป / ลิงก์)
   const renderActionButton = (doc: any) => {
     if (doc.doc_type === 'link') {
       return <a href={doc.file_url} target="_blank" className="bg-purple-100 text-purple-700 px-3 py-1 rounded hover:bg-purple-200 text-xs font-bold transition flex items-center gap-1 w-fit">🔗 เปิดลิงก์</a>
@@ -54,7 +58,10 @@ export default function StandardDetail() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto">
+        {/* ปุ่มย้อนกลับ */}
         <Link href="/" className="text-gray-500 hover:text-blue-600 mb-4 inline-block">&larr; กลับหน้าหลัก</Link>
+        
+        {/* ชื่อมาตรฐาน */}
         <h1 className="text-2xl font-bold text-blue-900 mb-6 border-b pb-4">{standard?.name}</h1>
 
         <div className="space-y-8">
@@ -78,7 +85,6 @@ export default function StandardDetail() {
                     </thead>
                     <tbody>
                       {indicator.documents.map((doc: any) => (
-                        /* 2. ใช้ Fragment แทน <> และใส่ key ไว้ที่นี่ */
                         <Fragment key={doc.id}>
                           <tr className="border-b last:border-0 hover:bg-blue-50">
                             <td className="px-4 py-3 text-center text-lg">{doc.doc_type === 'link' ? '🔗' : doc.doc_type === 'album' ? '🖼️' : '📄'}</td>
@@ -91,7 +97,6 @@ export default function StandardDetail() {
                           </tr>
                           
                           {/* ส่วนแสดงรูปภาพ (Gallery Grid) */}
-                          {/* ส่วนแสดงรูปภาพ (Gallery Grid) - แก้ไขเรื่องจอดำแล้ว */}
                           {doc.doc_type === 'album' && expandedAlbums[doc.id] && doc.gallery && (
                             <tr className="bg-gray-50">
                               <td colSpan={4} className="p-4">
@@ -103,14 +108,8 @@ export default function StandardDetail() {
                                       target="_blank" 
                                       className="block group relative aspect-video bg-gray-200 rounded overflow-hidden border border-gray-300 shadow-sm hover:shadow-md transition"
                                     >
-                                      {/* รูปภาพ */}
-                                      <img 
-                                        src={imgUrl} 
-                                        alt={`รูปที่ ${idx+1}`} 
-                                        className="w-full h-full object-cover" 
-                                      />
-                                      
-                                      {/* แผ่นฟิล์มดำ + ปุ่มขยาย (ซ่อนไว้ด้วย opacity-0 และจะโผล่มาตอน hover) */}
+                                      <img src={imgUrl} alt={`รูปที่ ${idx+1}`} className="w-full h-full object-cover" />
+                                      {/* แก้ไข Overlay ให้ใสและแสดงปุ่มขยายเมื่อเอาเมาส์ชี้ */}
                                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
                                         <span className="text-white font-bold border border-white px-3 py-1 rounded-full text-sm hover:bg-white hover:text-black transition">
                                           🔍 ขยายดูภาพ
@@ -131,6 +130,14 @@ export default function StandardDetail() {
             </div>
           ))}
         </div>
+
+        {/* 👇👇👇 เพิ่มปุ่มทางเข้า Admin ตรงนี้ครับ 👇👇👇 */}
+        <div className="mt-12 pt-6 border-t text-center">
+          <Link href="/login" className="text-gray-400 text-sm hover:text-blue-600 transition flex items-center justify-center gap-1 font-medium">
+            🔒 สำหรับผู้ดูแลระบบ
+          </Link>
+        </div>
+
       </div>
     </div>
   )
