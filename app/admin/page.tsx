@@ -84,7 +84,7 @@ export default function AdminDashboard() {
         const { data: urlData } = supabase.storage.from('school_docs').getPublicUrl(fileName)
 
         await supabase.from('documents').insert({
-          title, indicator_id: Number(selectedIndicator), file_url: publicUrlData.publicUrl, doc_type: 'pdf'
+          title, indicator_id: Number(selectedIndicator), file_url: urlData.publicUrl, doc_type: 'pdf'
         })
       }
       // CASE 2: LINK
@@ -425,3 +425,5 @@ export default function AdminDashboard() {
     </div>
   )
 }
+
+
