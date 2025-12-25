@@ -1,143 +1,202 @@
-"use client"
+"use client" // <--- สำคัญมาก: ใส่บรรทัดนี้เพื่อเปิดใช้ลูกเล่นคลิกดูรูป
 
-import { createClient } from '@supabase/supabase-js'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { useEffect, useState, Fragment } from 'react'
 import { useParams } from 'next/navigation'
-
-// สร้าง Client สำหรับเชื่อมต่อ Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export default function StandardDetail() {
   const params = useParams()
-  const id = params?.id as string
+  // แปลง id ให้เป็น string ให้ชัวร์ (บางทีอาจมาเป็น array)
+  const id = Array.isArray(params?.id) ? params.id[0] : params?.id
 
+  // --- State เก็บข้อมูล ---
   const [standard, setStandard] = useState<any>(null)
   const [indicators, setIndicators] = useState<any[]>([])
-  const [expandedAlbums, setExpandedAlbums] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(true)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  // 1. ดึงข้อมูลมาตรฐานและตัวบ่งชี้
+  // --- State สำหรับ หุบ/กาง อัลบั้ม ---
+  const [expandedAlbums, setExpandedAlbums] = useState<Record<number, boolean>>({})
+
+  // ดึงข้อมูลเมื่อหน้าเว็บโหลด
   useEffect(() => {
-    async function fetchData() {
-      const { data: std } = await supabase.from('standards').select('*').eq('id', id).single()
-      setStandard(std)
+    if (!id) return
 
-      const { data: inds } = await supabase.from('indicators')
-        .select(`*, documents (*)`)
-        .eq('standard_id', id)
-        .order('code', { ascending: true })
-      setIndicators(inds || [])
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        // 1. ดึงชื่อมาตรฐาน
+        const { data: std, error: stdErr } = await supabase
+          .from('standards')
+          .select('*')
+          .eq('id', id)
+          .single()
+        
+        if (stdErr) throw stdErr
+        setStandard(std)
+
+        // 2. ดึงตัวบ่งชี้ + กิจกรรม + เอกสาร
+        const { data: inds, error: indErr } = await supabase
+          .from('indicators')
+          .select(`
+            *,
+            activities (
+              *,
+              documents (*)
+            ),
+            documents (*)
+          `)
+          .eq('standard_id', id)
+          .order('code', { ascending: true })
+        
+        if (indErr) throw indErr
+
+        // จัดเรียงข้อมูล
+        const sorted = inds?.map((ind: any) => ({
+            ...ind,
+            activities: ind.activities?.sort((a:any, b:any) => a.id - b.id), 
+            documents: ind.documents?.filter((d:any) => !d.activity_id) 
+        }))
+        setIndicators(sorted || [])
+
+      } catch (err: any) {
+        setErrorMsg(err.message)
+      } finally {
+        setLoading(false)
+      }
     }
-    if (id) fetchData()
+
+    fetchData()
   }, [id])
 
-  // ฟังก์ชันสลับการกาง/หุบอัลบั้ม
-  const toggleAlbum = (docId: string) => {
+  // ฟังก์ชันสลับการแสดงผลอัลบั้ม
+  const toggleAlbum = (docId: number) => {
     setExpandedAlbums(prev => ({ ...prev, [docId]: !prev[docId] }))
   }
 
-  // ฟังก์ชันเลือกปุ่มแสดงผล (PDF / รูป / ลิงก์)
-  const renderActionButton = (doc: any) => {
-    if (doc.doc_type === 'link') {
-      return <a href={doc.file_url} target="_blank" className="bg-purple-100 text-purple-700 px-3 py-1 rounded hover:bg-purple-200 text-xs font-bold transition flex items-center gap-1 w-fit">🔗 เปิดลิงก์</a>
-    } else if (doc.doc_type === 'album') {
-      const isExpanded = expandedAlbums[doc.id]
-      return (
-        <button onClick={() => toggleAlbum(doc.id)} className={`px-3 py-1 rounded text-xs font-bold transition flex items-center gap-1 w-fit ${isExpanded ? 'bg-gray-200 text-gray-700' : 'bg-green-100 text-green-700 hover:bg-green-200'}`}>
-          {isExpanded ? '🔼 ซ่อนรูป' : '🖼️ ดูรูปภาพ'}
-        </button>
-      )
-    } else {
-      return <a href={doc.file_url} target="_blank" className="bg-blue-100 text-blue-700 px-3 py-1 rounded hover:bg-blue-200 text-xs font-bold transition flex items-center gap-1 w-fit">📄 เปิด PDF</a>
-    }
-  }
+  // --- ส่วนแสดงผล ---
+  if (loading) return <div className="p-10 text-center text-gray-500">⏳ กำลังโหลดข้อมูล...</div>
+  if (errorMsg || !standard) return (
+    <div className="p-10 text-center text-red-500">
+      <h2 className="text-xl font-bold">ไม่พบข้อมูล</h2>
+      <p className="text-sm mt-2">{errorMsg}</p>
+      <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline">กลับหน้าหลัก</Link>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 py-10 px-4 md:px-8 font-sans">
       <div className="max-w-5xl mx-auto">
-        {/* ปุ่มย้อนกลับ */}
-        <Link href="/" className="text-gray-500 hover:text-blue-600 mb-4 inline-block">&larr; กลับหน้าหลัก</Link>
         
-        {/* ชื่อมาตรฐาน */}
-        <h1 className="text-2xl font-bold text-blue-900 mb-6 border-b pb-4">{standard?.name}</h1>
+        {/* Header */}
+        <Link href="/" className="inline-block mb-6 text-blue-600 hover:underline text-sm font-medium">&larr; กลับหน้าหลัก</Link>
+        
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 mb-8 border-l-4 border-l-blue-600">
+          <h1 className="text-2xl md:text-3xl font-bold text-blue-900 mb-2">{standard.name}</h1>
+          <p className="text-gray-600">รายละเอียดตัวบ่งชี้และร่องรอยหลักฐาน</p>
+        </div>
 
+        {/* Loop Indicators */}
         <div className="space-y-8">
-          {indicators.map((indicator) => (
-            <div key={indicator.id} className="bg-white rounded-lg shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-start gap-2">
-                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm whitespace-nowrap">ตัวบ่งชี้ {indicator.code}</span>
-                {indicator.name}
-              </h3>
+          {indicators.map((ind) => (
+            <div key={ind.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-start gap-3">
+                <span className="bg-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm mt-0.5 shadow-sm min-w-fit">
+                  {ind.code}
+                </span>
+                <h2 className="text-lg font-bold text-gray-800 leading-relaxed">{ind.name}</h2>
+              </div>
 
-              {indicator.documents && indicator.documents.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-gray-500 bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-2 w-10"></th>
-                        <th className="px-4 py-2">รายการหลักฐาน</th>
-                        <th className="px-4 py-2 w-32">วันที่</th>
-                        <th className="px-4 py-2 w-32">เปิดดู</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {indicator.documents.map((doc: any) => (
-                        <Fragment key={doc.id}>
-                          <tr className="border-b last:border-0 hover:bg-blue-50">
-                            <td className="px-4 py-3 text-center text-lg">{doc.doc_type === 'link' ? '🔗' : doc.doc_type === 'album' ? '🖼️' : '📄'}</td>
-                            <td className="px-4 py-3 font-medium text-gray-700">
-                              {doc.title}
-                              {doc.doc_type === 'album' && doc.gallery && <span className="ml-2 text-xs text-gray-400">({doc.gallery.length} รูป)</span>}
-                            </td>
-                            <td className="px-4 py-3 text-gray-500">{new Date(doc.uploaded_at).toLocaleDateString('th-TH')}</td>
-                            <td className="px-4 py-3">{renderActionButton(doc)}</td>
-                          </tr>
-                          
-                          {/* ส่วนแสดงรูปภาพ (Gallery Grid) */}
-                          {doc.doc_type === 'album' && expandedAlbums[doc.id] && doc.gallery && (
-                            <tr className="bg-gray-50">
-                              <td colSpan={4} className="p-4">
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                  {doc.gallery.map((imgUrl: string, idx: number) => (
-                                    <a 
-                                      key={idx} 
-                                      href={imgUrl} 
-                                      target="_blank" 
-                                      className="block group relative aspect-video bg-gray-200 rounded overflow-hidden border border-gray-300 shadow-sm hover:shadow-md transition"
-                                    >
-                                      <img src={imgUrl} alt={`รูปที่ ${idx+1}`} className="w-full h-full object-cover" />
-                                      {/* แก้ไข Overlay ให้ใสและแสดงปุ่มขยายเมื่อเอาเมาส์ชี้ */}
-                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition duration-300 flex items-center justify-center">
-                                        <span className="text-white font-bold border border-white px-3 py-1 rounded-full text-sm hover:bg-white hover:text-black transition">
-                                          🔍 ขยายดูภาพ
-                                        </span>
-                                      </div>
-                                    </a>
-                                  ))}
+              <div className="p-6">
+                {/* --- ส่วนแสดงหลักฐาน/ร่องรอย --- */}
+                {ind.activities && ind.activities.length > 0 ? (
+                    <div className="grid gap-6">
+                        {ind.activities.map((act: any) => (
+                            <div key={act.id} className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition duration-200">
+                                <h3 className="text-lg font-bold text-gray-900 mb-2 border-b pb-2 flex items-center gap-2">
+                                    📂 {act.title}
+                                </h3>
+                                {act.description && <p className="text-gray-600 text-sm mb-4 leading-relaxed">{act.description}</p>}
+
+                                {/* รายการเอกสารในกิจกรรม */}
+                                <div className="space-y-3">
+                                    {act.documents?.map((doc: any) => (
+                                        <div key={doc.id}>
+                                            {/* กรณี Link หรือ PDF (แสดงแบบเดิม) */}
+                                            {doc.doc_type !== 'album' && (
+                                                <a 
+                                                    href={doc.file_url} 
+                                                    target="_blank"
+                                                    className="flex items-center gap-3 p-3 rounded-md bg-gray-50 border border-gray-100 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition group"
+                                                >
+                                                    <span className="text-xl">{doc.doc_type === 'link' ? '🔗' : '📄'}</span>
+                                                    <div className="flex-1 font-medium text-gray-800 group-hover:text-blue-700">{doc.title}</div>
+                                                    <span className="text-gray-400 text-sm group-hover:text-blue-500">เปิด &rarr;</span>
+                                                </a>
+                                            )}
+
+                                            {/* กรณี Album (แบบใหม่: คลิกเพื่อกาง) */}
+                                            {doc.doc_type === 'album' && (
+                                                <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
+                                                    <button 
+                                                        onClick={() => toggleAlbum(doc.id)}
+                                                        className="w-full flex justify-between items-center p-3 bg-gray-50 hover:bg-blue-50 transition"
+                                                    >
+                                                        <div className="flex items-center gap-2 font-medium text-gray-800">
+                                                            <span>🖼️ {doc.title}</span>
+                                                            <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
+                                                                {doc.gallery?.length || 0} รูป
+                                                            </span>
+                                                        </div>
+                                                        <span className="text-xs font-bold text-blue-600 bg-white border border-blue-200 px-2 py-1 rounded">
+                                                            {expandedAlbums[doc.id] ? '🔼 ซ่อนรูปภาพ' : '🔽 ดูรูปภาพ'}
+                                                        </span>
+                                                    </button>
+                                                    
+                                                    {/* ส่วนแสดงรูป (จะโผล่มาเมื่อ expandedAlbums เป็น true) */}
+                                                    {expandedAlbums[doc.id] && doc.gallery && (
+                                                        <div className="p-3 border-t border-gray-200 bg-white animate-fade-in">
+                                                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                                                                {doc.gallery.map((url: string, idx: number) => (
+                                                                    <a key={idx} href={url} target="_blank" className="aspect-square relative block overflow-hidden rounded border hover:opacity-90">
+                                                                        <img src={url} className="w-full h-full object-cover" loading="lazy" />
+                                                                    </a>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {(!act.documents || act.documents.length === 0) && <div className="text-gray-400 text-sm italic pl-2">- กำลังดำเนินการรวบรวมเอกสาร -</div>}
                                 </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : <div className="text-gray-400 text-sm italic bg-gray-50 p-3 rounded border border-dashed text-center">ยังไม่มีเอกสาร</div>}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    ind.documents.length === 0 && <div className="text-center text-gray-400 py-6 italic border-2 border-dashed rounded-lg bg-gray-50">ยังไม่มีข้อมูลหลักฐาน/ร่องรอย</div>
+                )}
+
+                {/* เอกสารนอกกลุ่ม (ถ้ามี) */}
+                {ind.documents && ind.documents.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-gray-200">
+                        <h4 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wide">เอกสารประกอบอื่นๆ</h4>
+                        <div className="grid md:grid-cols-2 gap-3">
+                            {ind.documents.map((doc: any) => (
+                                <a key={doc.id} href={doc.file_url} target="_blank" className="flex items-center gap-2 text-sm text-gray-600 bg-white border p-3 rounded hover:bg-gray-50 hover:text-blue-600 transition">
+                                    <span className="text-lg">{doc.doc_type === 'link' ? '🔗' : '📄'}</span>
+                                    <span className="truncate font-medium">{doc.title}</span>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
-
-        {/* 👇👇👇 เพิ่มปุ่มทางเข้า Admin ตรงนี้ครับ 👇👇👇 */}
-        <div className="mt-12 pt-6 border-t text-center">
-          <Link href="/login" className="text-gray-400 text-sm hover:text-blue-600 transition flex items-center justify-center gap-1 font-medium">
-            🔒 สำหรับผู้ดูแลระบบ
-          </Link>
-        </div>
-
       </div>
     </div>
   )

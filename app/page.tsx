@@ -16,17 +16,8 @@ export default async function Home() {
   // 3. ส่วนแสดงผลหน้าจอ (HTML)
   return (
     <div className="min-h-screen bg-gray-50 p-10">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto">        
         
-        {/* --- เพิ่มส่วนนี้: ปุ่ม Login Admin มุมขวาบน --- */}
-        <div className="flex justify-end mb-4">
-          <Link 
-            href="/login" 
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-blue-600 transition-colors shadow-sm"
-          >
-            🔒 เข้าสู่ระบบ Admin
-          </Link>
-        </div>
         {/* ------------------------------------------- */}
 
         <h1 className="text-3xl font-bold text-blue-800 mb-2">
