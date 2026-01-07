@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// import Link ไม่ต้องใช้หน้านี้แล้ว เพราะย้ายไปอยู่ใน AdminButton แล้ว
-import AdminButton from "./components/AdminButton"; // <--- 1. นำเข้าปุ่มที่เราเพิ่งสร้าง
+// import AdminButton from "./components/AdminButton"; <--- ลบบรรทัดนี้ทิ้ง หรือ Comment ไว้
+import Header from "./components/Header"; // <--- 1. Import Header มาแทน
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,13 +25,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="th"> {/* เปลี่ยนเป็น th ก็ดีนะคะ ถ้าเว็บเป็นภาษาไทย */}
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
-        {/* --- 2. เรียกใช้ปุ่มแบบฉลาด (มันจะซ่อนตัวเองถ้าเป็นหน้า Admin) --- */}
-        <AdminButton />
+        {/* 2. ใส่ Header ไว้บนสุด (มันจะมีปุ่ม Admin อยู่ข้างในแล้ว) */}
+        <Header />
         
+        {/* เนื้อหาเว็บ */}
         {children}
       </body>
     </html>
