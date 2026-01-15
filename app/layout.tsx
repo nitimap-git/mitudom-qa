@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "ระบบประกันคุณภาพ - อนุบาลมิตรอุดม",
-  description: "ระบบสารสนเทศเพื่อการประกันคุณภาพภายใน",
+  description: "ระบบสารสนเทศเพื่อการประกันคุณภาพภายนอก",
 };
 
 export default function RootLayout({
