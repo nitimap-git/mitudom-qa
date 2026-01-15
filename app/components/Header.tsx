@@ -39,7 +39,7 @@ export default function Header() {
                 โรงเรียนอนุบาลมิตรอุดม
               </h1>
               <p className="text-xs md:text-sm text-gray-500">
-                ระบบสารสนเทศเพื่อการประกันคุณภาพภายใน
+                ระบบสารสนเทศเพื่อการประกันคุณภาพภายนอก
               </p>
             </div>
           </Link>
