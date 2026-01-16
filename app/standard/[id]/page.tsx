@@ -13,43 +13,18 @@ export default function StandardPage() {
   const [currentStandard, setCurrentStandard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // --- ข้อมูลเปรียบเทียบ 3 ปี (ลอกมาจากตารางในรูปภาพ) ---
+  // --- 📸 State สำหรับ Lightbox (ตัวดูรูปภาพ) ---
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [currentAlbum, setCurrentAlbum] = useState<string[]>([])
+  const [photoIndex, setPhotoIndex] = useState(0)
+
+  // --- Mock Data: ข้อมูลสรุปเปรียบเทียบ ---
   const comparisonData = [
-    {
-      id: 1,
-      name: "ด้านร่างกาย",
-      y2565: { target: 82, result: 83.74 },
-      y2566: { target: 82, result: 92.42 },
-      y2567: { target: 89, result: 98.25 },
-    },
-    {
-      id: 2,
-      name: "ด้านสติปัญญา",
-      y2565: { target: 78, result: 76.42 },
-      y2566: { target: 80, result: 91.67 },
-      y2567: { target: 98, result: 97.37 },
-    },
-    {
-      id: 3,
-      name: "ด้านภาษาและการสื่อสาร",
-      y2565: { target: 80, result: 82.93 },
-      y2566: { target: 89, result: 89.39 },
-      y2567: { target: 95, result: 90.35 },
-    },
-    {
-      id: 4,
-      name: "ด้านอารมณ์ จิตใจ",
-      y2565: { target: 85, result: 86.99 },
-      y2566: { target: 85, result: 93.94 },
-      y2567: { target: 98, result: 97.39 },
-    },
-    {
-      id: 5,
-      name: "ด้านสังคมและคุณธรรม",
-      y2565: { target: 90, result: 84.55 },
-      y2566: { target: 87, result: 93.94 },
-      y2567: { target: 95, result: 97.37 },
-    },
+    { id: 1, name: "ด้านร่างกาย", y2565: { target: 82, result: 83.74 }, y2566: { target: 82, result: 92.42 }, y2567: { target: 89, result: 98.25 } },
+    { id: 2, name: "ด้านสติปัญญา", y2565: { target: 78, result: 76.42 }, y2566: { target: 80, result: 91.67 }, y2567: { target: 98, result: 97.37 } },
+    { id: 3, name: "ด้านภาษาและการสื่อสาร", y2565: { target: 80, result: 82.93 }, y2566: { target: 89, result: 89.39 }, y2567: { target: 95, result: 90.35 } },
+    { id: 4, name: "ด้านอารมณ์ จิตใจ", y2565: { target: 85, result: 86.99 }, y2566: { target: 85, result: 93.94 }, y2567: { target: 98, result: 97.39 } },
+    { id: 5, name: "ด้านสังคมและคุณธรรม", y2565: { target: 90, result: 84.55 }, y2566: { target: 87, result: 93.94 }, y2567: { target: 95, result: 97.37 } },
   ]
 
   // --- Fetch Data ---
@@ -89,6 +64,17 @@ export default function StandardPage() {
     }
     fetchData()
   }, [currentId])
+
+  // --- Functions สำหรับ Lightbox ---
+  const openAlbum = (gallery: string[]) => {
+    if (!gallery || gallery.length === 0) return
+    setCurrentAlbum(gallery)
+    setPhotoIndex(0)
+    setLightboxOpen(true)
+  }
+  const closeLightbox = () => setLightboxOpen(false)
+  const nextPhoto = () => setPhotoIndex((prev) => (prev + 1) % currentAlbum.length)
+  const prevPhoto = () => setPhotoIndex((prev) => (prev - 1 + currentAlbum.length) % currentAlbum.length)
 
   // --- Render ---
   return (
@@ -133,25 +119,21 @@ export default function StandardPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{currentStandard.name}</h1>
             </div>
 
-            {/* --- ✨ ตารางเปรียบเทียบ (แสดงเฉพาะมาตรฐานที่ 1) ✨ --- */}
+            {/* --- TABLE (Standard 1) --- */}
             {currentStandard.id === 1 && (
               <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-6 mb-10">
-                
                 <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                   📊 ผลลัพธ์คุณภาพของเด็กปฐมวัย <span className="text-sm font-normal text-gray-500">(เปรียบเทียบเป้าหมาย vs ผลการประเมิน)</span>
                 </h2>
-
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="w-full text-sm text-left">
                     <thead>
-                      {/* แถวปี พ.ศ. */}
                       <tr className="bg-blue-600 text-white">
                         <th className="px-4 py-3 border-r border-blue-500 text-left font-bold min-w-[200px]">พัฒนาการเด็ก</th>
                         <th colSpan={2} className="px-4 py-2 border-r border-blue-500 text-center font-bold">ปี 2565</th>
                         <th colSpan={2} className="px-4 py-2 border-r border-blue-500 text-center font-bold">ปี 2566</th>
                         <th colSpan={2} className="px-4 py-2 text-center font-bold">ปี 2567</th>
                       </tr>
-                      {/* แถวหัวข้อย่อย */}
                       <tr className="bg-blue-50 text-blue-900 border-b border-gray-200">
                         <th className="px-4 py-2 border-r border-gray-200"></th>
                         <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-r border-gray-200 bg-gray-50">เป้าหมาย</th>
@@ -165,27 +147,13 @@ export default function StandardPage() {
                     <tbody className="divide-y divide-gray-100">
                       {comparisonData.map((row, index) => (
                         <tr key={index} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-gray-800 border-r border-gray-100">
-                            {index + 1}. {row.name}
-                          </td>
-                          
-                          {/* ปี 2565 */}
+                          <td className="px-4 py-3 font-semibold text-gray-800 border-r border-gray-100">{index + 1}. {row.name}</td>
                           <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2565.target}</td>
-                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2565.result >= row.y2565.target ? 'text-green-600' : 'text-red-500'}`}>
-                            {row.y2565.result}
-                          </td>
-
-                          {/* ปี 2566 */}
+                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2565.result >= row.y2565.target ? 'text-green-600' : 'text-red-500'}`}>{row.y2565.result}</td>
                           <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2566.target}</td>
-                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2566.result >= row.y2566.target ? 'text-green-600' : 'text-red-500'}`}>
-                            {row.y2566.result}
-                          </td>
-
-                          {/* ปี 2567 */}
+                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2566.result >= row.y2566.target ? 'text-green-600' : 'text-red-500'}`}>{row.y2566.result}</td>
                           <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2567.target}</td>
-                          <td className={`px-2 py-3 text-center font-bold ${row.y2567.result >= row.y2567.target ? 'text-green-600' : 'text-red-500'}`}>
-                            {row.y2567.result}
-                          </td>
+                          <td className={`px-2 py-3 text-center font-bold ${row.y2567.result >= row.y2567.target ? 'text-green-600' : 'text-red-500'}`}>{row.y2567.result}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -198,8 +166,8 @@ export default function StandardPage() {
                 </div>
               </div>
             )}
-            {/* --- END TABLE --- */}
 
+            {/* --- CONTENT TREE --- */}
             <div className="space-y-10">
               {currentStandard.indicators.map((ind: any) => (
                 <section key={ind.id} className="scroll-mt-20">
@@ -243,7 +211,13 @@ export default function StandardPage() {
                                                 ))}
                                               </div>
                                             )}
-                                            <a href={doc.gallery?.[0] || '#'} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-1 text-[10px] font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">เปิดอัลบั้ม</a>
+                                            {/* เปลี่ยนจาก <a> เป็น <button> เพื่อเปิด Lightbox */}
+                                            <button 
+                                                onClick={() => openAlbum(doc.gallery)} 
+                                                className="block w-full text-center py-1 text-[10px] font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors"
+                                            >
+                                                เปิดอัลบั้มภาพ
+                                            </button>
                                           </div>
                                         )}
                                       </div>
@@ -263,6 +237,48 @@ export default function StandardPage() {
           </div>
         )}
       </main>
+
+      {/* --- 📸 LIGHTBOX MODAL --- */}
+      {lightboxOpen && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center">
+            {/* Close Button */}
+            <button 
+                onClick={closeLightbox} 
+                className="absolute top-4 right-4 text-white hover:text-gray-300 z-50 p-2 bg-black/50 rounded-full"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+
+            {/* Prev Button */}
+            <button 
+                onClick={prevPhoto} 
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition-transform hover:scale-110"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+            </button>
+
+            {/* Main Image */}
+            <div className="max-w-5xl max-h-[85vh] p-2">
+                <img 
+                    src={currentAlbum[photoIndex]} 
+                    alt="Gallery" 
+                    className="max-w-full max-h-[85vh] object-contain rounded shadow-2xl"
+                />
+                <p className="text-center text-white mt-4 font-mono text-sm">
+                    รูปที่ {photoIndex + 1} / {currentAlbum.length}
+                </p>
+            </div>
+
+            {/* Next Button */}
+            <button 
+                onClick={nextPhoto} 
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition-transform hover:scale-110"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+            </button>
+        </div>
+      )}
+
     </div>
   )
 }
