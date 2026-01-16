@@ -13,9 +13,11 @@ export default function StandardPage() {
   const [currentStandard, setCurrentStandard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // --- 📸 State สำหรับ Lightbox (ตัวดูรูปภาพ) ---
-  const [lightboxOpen, setLightboxOpen] = useState(false)
+  // --- 📸 State สำหรับ Gallery ---
+  const [albumModalOpen, setAlbumModalOpen] = useState(false) // เปิดหน้าอัลบั้มรวม (Grid)
+  const [fullscreenOpen, setFullscreenOpen] = useState(false) // เปิดรูปใหญ่ (Slider)
   const [currentAlbum, setCurrentAlbum] = useState<string[]>([])
+  const [currentAlbumTitle, setCurrentAlbumTitle] = useState('')
   const [photoIndex, setPhotoIndex] = useState(0)
 
   // --- Mock Data: ข้อมูลสรุปเปรียบเทียบ ---
@@ -65,16 +67,31 @@ export default function StandardPage() {
     fetchData()
   }, [currentId])
 
-  // --- Functions สำหรับ Lightbox ---
-  const openAlbum = (gallery: string[]) => {
+  // --- Functions สำหรับ Gallery ---
+  // 1. เปิดหน้าอัลบั้มรวม (Grid)
+  const openAlbumGrid = (gallery: string[], title: string) => {
     if (!gallery || gallery.length === 0) return
     setCurrentAlbum(gallery)
-    setPhotoIndex(0)
-    setLightboxOpen(true)
+    setCurrentAlbumTitle(title)
+    setAlbumModalOpen(true)
   }
-  const closeLightbox = () => setLightboxOpen(false)
-  const nextPhoto = () => setPhotoIndex((prev) => (prev + 1) % currentAlbum.length)
-  const prevPhoto = () => setPhotoIndex((prev) => (prev - 1 + currentAlbum.length) % currentAlbum.length)
+
+  // 2. เปิดรูปใหญ่ (Fullscreen) จากหน้า Grid
+  const openFullscreen = (index: number) => {
+    setPhotoIndex(index)
+    setFullscreenOpen(true)
+  }
+
+  // 3. ปิดหน้าต่างๆ
+  const closeAlbumGrid = () => {
+    setAlbumModalOpen(false)
+    setFullscreenOpen(false)
+  }
+  const closeFullscreen = () => setFullscreenOpen(false)
+
+  // 4. เลื่อนรูป
+  const nextPhoto = (e: any) => { e.stopPropagation(); setPhotoIndex((prev) => (prev + 1) % currentAlbum.length) }
+  const prevPhoto = (e: any) => { e.stopPropagation(); setPhotoIndex((prev) => (prev - 1 + currentAlbum.length) % currentAlbum.length) }
 
   // --- Render ---
   return (
@@ -204,6 +221,7 @@ export default function StandardPage() {
                                         ) : (
                                           <div className="bg-white rounded-lg border border-gray-200 p-2.5 h-full">
                                             <div className="flex items-center gap-2 mb-2"><span className="text-base">📸</span><span className="text-xs font-bold text-gray-800 truncate">{doc.title}</span></div>
+                                            {/* Preview 4 รูป */}
                                             {doc.gallery && doc.gallery.length > 0 && (
                                               <div className="grid grid-cols-4 gap-1 mb-2">
                                                 {doc.gallery.slice(0, 4).map((img: string, i: number) => (
@@ -211,9 +229,9 @@ export default function StandardPage() {
                                                 ))}
                                               </div>
                                             )}
-                                            {/* เปลี่ยนจาก <a> เป็น <button> เพื่อเปิด Lightbox */}
+                                            {/* ปุ่มเปิดอัลบั้มรวม (Grid) */}
                                             <button 
-                                                onClick={() => openAlbum(doc.gallery)} 
+                                                onClick={() => openAlbumGrid(doc.gallery, doc.title)} 
                                                 className="block w-full text-center py-1 text-[10px] font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors"
                                             >
                                                 เปิดอัลบั้มภาพ
@@ -238,44 +256,85 @@ export default function StandardPage() {
         )}
       </main>
 
-      {/* --- 📸 LIGHTBOX MODAL --- */}
-      {lightboxOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center">
+      {/* --- 📸 1. ALBUM GRID MODAL (หน้าอัลบั้มรวม) --- */}
+      {albumModalOpen && (
+        <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-5xl h-[85vh] rounded-xl overflow-hidden flex flex-col shadow-2xl animate-fade-in-up">
+                
+                {/* Header */}
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                        📸 {currentAlbumTitle} 
+                        <span className="bg-gray-200 text-gray-600 text-xs px-2 py-0.5 rounded-full">{currentAlbum.length} รูป</span>
+                    </h3>
+                    <button onClick={closeAlbumGrid} className="text-gray-400 hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* Grid Content (Scrollable) */}
+                <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {currentAlbum.map((img, i) => (
+                            <div 
+                                key={i} 
+                                onClick={() => openFullscreen(i)}
+                                className="aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-4 hover:ring-blue-400 hover:shadow-lg transition-all group relative"
+                            >
+                                <img src={img} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="p-3 border-t border-gray-200 bg-white text-right text-xs text-gray-400">
+                    คลิกที่รูปเพื่อขยายใหญ่
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- 📸 2. FULLSCREEN LIGHTBOX (รูปใหญ่) --- */}
+      {fullscreenOpen && (
+        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
             {/* Close Button */}
             <button 
-                onClick={closeLightbox} 
-                className="absolute top-4 right-4 text-white hover:text-gray-300 z-50 p-2 bg-black/50 rounded-full"
+                onClick={closeFullscreen} 
+                className="absolute top-4 right-4 text-white hover:text-gray-300 z-50 p-2 bg-white/10 rounded-full backdrop-blur-sm"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
 
-            {/* Prev Button */}
+            {/* Prev */}
             <button 
                 onClick={prevPhoto} 
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition-transform hover:scale-110"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-3 bg-white/10 rounded-full backdrop-blur-sm hover:bg-white/20 transition-all"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
             </button>
 
             {/* Main Image */}
-            <div className="max-w-5xl max-h-[85vh] p-2">
+            <div className="w-full h-full p-4 flex items-center justify-center">
                 <img 
                     src={currentAlbum[photoIndex]} 
-                    alt="Gallery" 
-                    className="max-w-full max-h-[85vh] object-contain rounded shadow-2xl"
+                    className="max-w-full max-h-full object-contain shadow-2xl"
                 />
-                <p className="text-center text-white mt-4 font-mono text-sm">
-                    รูปที่ {photoIndex + 1} / {currentAlbum.length}
-                </p>
             </div>
 
-            {/* Next Button */}
+            {/* Next */}
             <button 
                 onClick={nextPhoto} 
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 bg-black/50 rounded-full transition-transform hover:scale-110"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-3 bg-white/10 rounded-full backdrop-blur-sm hover:bg-white/20 transition-all"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
             </button>
+
+            {/* Counter */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-1 rounded-full text-sm font-mono backdrop-blur-sm">
+                {photoIndex + 1} / {currentAlbum.length}
+            </div>
         </div>
       )}
 
