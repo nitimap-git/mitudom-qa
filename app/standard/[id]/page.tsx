@@ -13,19 +13,53 @@ export default function StandardPage() {
   const [currentStandard, setCurrentStandard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
+  // --- ข้อมูลเปรียบเทียบ 3 ปี (ลอกมาจากตารางในรูปภาพ) ---
+  const comparisonData = [
+    {
+      id: 1,
+      name: "ด้านร่างกาย",
+      y2565: { target: 82, result: 83.74 },
+      y2566: { target: 82, result: 92.42 },
+      y2567: { target: 89, result: 98.25 },
+    },
+    {
+      id: 2,
+      name: "ด้านสติปัญญา",
+      y2565: { target: 78, result: 76.42 },
+      y2566: { target: 80, result: 91.67 },
+      y2567: { target: 98, result: 97.37 },
+    },
+    {
+      id: 3,
+      name: "ด้านภาษาและการสื่อสาร",
+      y2565: { target: 80, result: 82.93 },
+      y2566: { target: 89, result: 89.39 },
+      y2567: { target: 95, result: 90.35 },
+    },
+    {
+      id: 4,
+      name: "ด้านอารมณ์ จิตใจ",
+      y2565: { target: 85, result: 86.99 },
+      y2566: { target: 85, result: 93.94 },
+      y2567: { target: 98, result: 97.39 },
+    },
+    {
+      id: 5,
+      name: "ด้านสังคมและคุณธรรม",
+      y2565: { target: 90, result: 84.55 },
+      y2566: { target: 87, result: 93.94 },
+      y2567: { target: 95, result: 97.37 },
+    },
+  ]
+
   // --- Fetch Data ---
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        // 1. ดึง Sidebar
-        const { data: listData } = await supabase
-          .from('standards')
-          .select('id, name, code')
-          .order('id')
+        const { data: listData } = await supabase.from('standards').select('id, name, code').order('id')
         setStandardsList(listData || [])
 
-        // 2. ดึง Content
         if (currentId) {
             const { data: stdData, error: stdError } = await supabase
               .from('standards')
@@ -35,7 +69,6 @@ export default function StandardPage() {
 
             if (stdError) throw stdError
 
-            // Sorting
             if (stdData) {
               stdData.indicators.sort((a: any, b: any) => a.code.localeCompare(b.code, undefined, { numeric: true }))
               stdData.indicators.forEach((ind: any) => {
@@ -86,10 +119,7 @@ export default function StandardPage() {
         </nav>
       </aside>
 
-      {/* MAIN CONTENT (ปรับให้ชิดซ้าย) */}
-      {/* 1. เอา mx-auto ออก (เพื่อให้ชิดซ้าย) 
-          2. ปรับ max-w-5xl เป็น max-w-7xl (ให้กว้างขึ้น เต็มตาขึ้น)
-      */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 p-4 md:p-8 lg:p-10 w-full max-w-7xl">
         {loading ? (
           <div className="py-20 pl-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div><p className="text-gray-500 text-sm">กำลังโหลดข้อมูล...</p></div>
@@ -103,18 +133,80 @@ export default function StandardPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{currentStandard.name}</h1>
             </div>
 
+            {/* --- ✨ ตารางเปรียบเทียบ (แสดงเฉพาะมาตรฐานที่ 1) ✨ --- */}
+            {currentStandard.id === 1 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-6 mb-10">
+                
+                <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                  📊 ผลลัพธ์คุณภาพของเด็กปฐมวัย <span className="text-sm font-normal text-gray-500">(เปรียบเทียบเป้าหมาย vs ผลการประเมิน)</span>
+                </h2>
+
+                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full text-sm text-left">
+                    <thead>
+                      {/* แถวปี พ.ศ. */}
+                      <tr className="bg-blue-600 text-white">
+                        <th className="px-4 py-3 border-r border-blue-500 text-left font-bold min-w-[200px]">พัฒนาการเด็ก</th>
+                        <th colSpan={2} className="px-4 py-2 border-r border-blue-500 text-center font-bold">ปี 2565</th>
+                        <th colSpan={2} className="px-4 py-2 border-r border-blue-500 text-center font-bold">ปี 2566</th>
+                        <th colSpan={2} className="px-4 py-2 text-center font-bold">ปี 2567</th>
+                      </tr>
+                      {/* แถวหัวข้อย่อย */}
+                      <tr className="bg-blue-50 text-blue-900 border-b border-gray-200">
+                        <th className="px-4 py-2 border-r border-gray-200"></th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-r border-gray-200 bg-gray-50">เป้าหมาย</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-blue-700 border-r border-gray-200 bg-blue-100">ผลประเมิน</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-r border-gray-200 bg-gray-50">เป้าหมาย</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-blue-700 border-r border-gray-200 bg-blue-100">ผลประเมิน</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-gray-500 border-r border-gray-200 bg-gray-50">เป้าหมาย</th>
+                        <th className="px-2 py-2 text-center text-xs font-semibold text-blue-700 bg-blue-100">ผลประเมิน</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {comparisonData.map((row, index) => (
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-gray-800 border-r border-gray-100">
+                            {index + 1}. {row.name}
+                          </td>
+                          
+                          {/* ปี 2565 */}
+                          <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2565.target}</td>
+                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2565.result >= row.y2565.target ? 'text-green-600' : 'text-red-500'}`}>
+                            {row.y2565.result}
+                          </td>
+
+                          {/* ปี 2566 */}
+                          <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2566.target}</td>
+                          <td className={`px-2 py-3 text-center border-r border-gray-100 font-bold ${row.y2566.result >= row.y2566.target ? 'text-green-600' : 'text-red-500'}`}>
+                            {row.y2566.result}
+                          </td>
+
+                          {/* ปี 2567 */}
+                          <td className="px-2 py-3 text-center border-r border-gray-100 text-gray-500">{row.y2567.target}</td>
+                          <td className={`px-2 py-3 text-center font-bold ${row.y2567.result >= row.y2567.target ? 'text-green-600' : 'text-red-500'}`}>
+                            {row.y2567.result}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 flex gap-4 text-xs text-gray-500 justify-end">
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-gray-500 rounded-full"></div> ค่าเป้าหมาย</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-green-600 rounded-full"></div> ผ่านเกณฑ์</div>
+                    <div className="flex items-center gap-1"><div className="w-2 h-2 bg-red-500 rounded-full"></div> ต่ำกว่าเกณฑ์</div>
+                </div>
+              </div>
+            )}
+            {/* --- END TABLE --- */}
+
             <div className="space-y-10">
               {currentStandard.indicators.map((ind: any) => (
                 <section key={ind.id} className="scroll-mt-20">
-                  {/* Indicator Title */}
                   <div className="flex items-start gap-3 mb-5">
-                    <div className="bg-blue-600 text-white font-bold text-sm px-2.5 py-1 rounded shadow-sm shrink-0 mt-1">
-                      {ind.code}
-                    </div>
+                    <div className="bg-blue-600 text-white font-bold text-sm px-2.5 py-1 rounded shadow-sm shrink-0 mt-1">{ind.code}</div>
                     <h2 className="text-lg md:text-xl font-bold text-gray-800 leading-tight py-0.5">{ind.name}</h2>
                   </div>
-
-                  {/* Topics Area */}
                   <div className="space-y-6 ml-0 md:ml-12">
                     {ind.topics && ind.topics.length > 0 ? (
                       ind.topics.map((topic: any) => (
@@ -123,18 +215,14 @@ export default function StandardPage() {
                             <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">📌 {topic.title}</h3>
                             {topic.description && <p className="text-gray-500 text-xs mt-1 ml-6">{topic.description}</p>}
                           </div>
-
                           <div className="divide-y divide-gray-100">
                             {topic.activities && topic.activities.length > 0 ? (
                               topic.activities.map((act: any) => (
                                 <div key={act.id} className="p-5 hover:bg-blue-50/30 transition-colors">
                                   <div className="mb-3">
-                                    <h4 className="text-sm font-bold text-blue-900 mb-1 flex items-start gap-2">
-                                      <span className="text-blue-400">🔹</span>{act.title}
-                                    </h4>
+                                    <h4 className="text-sm font-bold text-blue-900 mb-1 flex items-start gap-2"><span className="text-blue-400">🔹</span>{act.title}</h4>
                                     {act.description && <p className="text-gray-600 text-xs ml-6">{act.description}</p>}
                                   </div>
-
                                   <div className="ml-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                                     {act.documents?.map((doc: any) => (
                                       <div key={doc.id} className="col-span-1">

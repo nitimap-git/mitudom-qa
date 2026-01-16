@@ -89,7 +89,6 @@ export default function AdminDashboard() {
                 }) || []
             })) || []
         }))
-        // 👇 จุดที่แก้ไข: เพิ่ม { numeric: true } เพื่อให้เรียงเลข 2.10 ต่อจาก 2.9 ได้ถูกต้อง
         .sort((a: any, b: any) => a.code.localeCompare(b.code, undefined, { numeric: true }))
       }))
       
@@ -178,25 +177,62 @@ export default function AdminDashboard() {
 
   // --- UPLOAD & DOCUMENTS ---
   const handleUpload = async (e: React.FormEvent) => {
-    e.preventDefault(); if (uploading) return; if (!docTitle) return alert('ใส่ชื่อเอกสาร')
+    e.preventDefault(); 
+    if (uploading) return; 
+    
+    // 🛡️ ป้องกัน Error: เช็คว่าเลือกกิจกรรมและตัวชี้วัดหรือยัง
+    if (!selectedActivity || !selectedActivity.id) return alert('เกิดข้อผิดพลาด: ไม่พบข้อมูลกิจกรรม');
+    // หมายเหตุ: indicator_id อาจไม่จำเป็นต้องใช้ในการ insert ถ้า DB ไม่บังคับ แต่ถ้าใส่ต้องมีค่า
+    const indicatorId = selectedIndicator?.id || selectedActivity.indicator_id; 
+
+    if (!docTitle) return alert('ใส่ชื่อเอกสาร')
+
     setUploading(true)
     try {
       let finalFileUrl = '', gallery: string[] = []
-      if (uploadType === 'link') finalFileUrl = linkUrl
-      else if (uploadType === 'pdf') {
-        const name = getSafeFileName(file!.name, 'pdf'); await supabase.storage.from('school_docs').upload(name, file!);
+      
+      if (uploadType === 'link') {
+          if (!linkUrl) throw new Error("กรุณาใส่ลิงก์");
+          finalFileUrl = linkUrl
+      } else if (uploadType === 'pdf') {
+        if (!file) throw new Error("กรุณาเลือกไฟล์ PDF");
+        const name = getSafeFileName(file.name, 'pdf'); 
+        await supabase.storage.from('school_docs').upload(name, file);
         finalFileUrl = supabase.storage.from('school_docs').getPublicUrl(name).data.publicUrl
       } else if (uploadType === 'album') {
-        for (let i = 0; i < images!.length; i++) {
-           const name = getSafeFileName(images![i].name, `img-${i}`); await supabase.storage.from('school_docs').upload(name, images![i]);
+        if (!images || images.length === 0) throw new Error("กรุณาเลือกรูปภาพ");
+        for (let i = 0; i < images.length; i++) {
+           const name = getSafeFileName(images[i].name, `img-${i}`); 
+           await supabase.storage.from('school_docs').upload(name, images[i]);
            gallery.push(supabase.storage.from('school_docs').getPublicUrl(name).data.publicUrl)
         }
         finalFileUrl = gallery[0]
       }
-      const payload: any = { title: docTitle, doc_type: uploadType, file_url: finalFileUrl, activity_id: selectedActivity.id, indicator_id: selectedIndicator.id, gallery: gallery.length > 0 ? gallery : null }
-      await supabase.from('documents').insert(payload)
-      alert('✅ อัปโหลดเรียบร้อย'); setShowUploadModal(false); setDocTitle(''); setFile(null); setImages(null); setLinkUrl(''); fetchData()
-    } catch (err: any) { alert(err.message) } finally { setUploading(false) }
+
+      const payload: any = { 
+          title: docTitle, 
+          doc_type: uploadType, 
+          file_url: finalFileUrl, 
+          activity_id: selectedActivity.id, 
+          indicator_id: indicatorId, // ใช้ค่าที่เช็คแล้ว
+          gallery: gallery.length > 0 ? gallery : null 
+      }
+
+      const { error } = await supabase.from('documents').insert(payload)
+      if (error) throw error
+
+      alert('✅ อัปโหลดเรียบร้อย'); 
+      setShowUploadModal(false); 
+      setDocTitle(''); 
+      setFile(null); 
+      setImages(null); 
+      setLinkUrl(''); 
+      fetchData()
+    } catch (err: any) { 
+        alert(`❌ Error: ${err.message}`) 
+    } finally { 
+        setUploading(false) 
+    }
   }
   
   // Gallery Actions
@@ -345,7 +381,8 @@ export default function AdminDashboard() {
                                                                         </div>
                                                                     ) : <p className="text-gray-400 text-xs text-center py-2">- ยังไม่มีไฟล์ -</p>}
                                                                 </div>
-                                                                <button onClick={() => { setSelectedActivity(act); setDocTitle(''); setShowUploadModal(true) }} className="text-sm text-blue-600 font-medium ml-9 hover:underline">⬆ แนบไฟล์เพิ่ม</button>
+                                                                {/* ⭐ FIX HERE: ใส่ setSelectedIndicator(ind) เข้าไป */}
+                                                                <button onClick={() => { setSelectedIndicator(ind); setSelectedActivity(act); setDocTitle(''); setShowUploadModal(true) }} className="text-sm text-blue-600 font-medium ml-9 hover:underline">⬆ แนบไฟล์เพิ่ม</button>
                                                             </div>
                                                         ))}
                                                         {topic.activities?.length === 0 && <p className="text-gray-400 text-sm italic py-2">ยังไม่มีหัวข้อย่อย</p>}
