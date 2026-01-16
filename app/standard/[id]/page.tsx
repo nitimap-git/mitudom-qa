@@ -1,203 +1,180 @@
-"use client" // <--- สำคัญมาก: ใส่บรรทัดนี้เพื่อเปิดใช้ลูกเล่นคลิกดูรูป
+"use client"
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 
-export default function StandardDetail() {
+export default function StandardPage() {
   const params = useParams()
-  // แปลง id ให้เป็น string ให้ชัวร์ (บางทีอาจมาเป็น array)
-  const id = Array.isArray(params?.id) ? params.id[0] : params?.id
+  const currentId = Number(params.id)
 
-  // --- State เก็บข้อมูล ---
-  const [standard, setStandard] = useState<any>(null)
-  const [indicators, setIndicators] = useState<any[]>([])
+  const [standardsList, setStandardsList] = useState<any[]>([])
+  const [currentStandard, setCurrentStandard] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState('')
 
-  // --- State สำหรับ หุบ/กาง อัลบั้ม ---
-  const [expandedAlbums, setExpandedAlbums] = useState<Record<number, boolean>>({})
-
-  // ดึงข้อมูลเมื่อหน้าเว็บโหลด
+  // --- Fetch Data ---
   useEffect(() => {
-    if (!id) return
-
     const fetchData = async () => {
       setLoading(true)
       try {
-        // 1. ดึงชื่อมาตรฐาน
-        const { data: std, error: stdErr } = await supabase
+        // 1. ดึง Sidebar
+        const { data: listData } = await supabase
           .from('standards')
-          .select('*')
-          .eq('id', id)
-          .single()
-        
-        if (stdErr) throw stdErr
-        setStandard(std)
+          .select('id, name, code')
+          .order('id')
+        setStandardsList(listData || [])
 
-        // 2. ดึงตัวบ่งชี้ + กิจกรรม + เอกสาร
-        const { data: inds, error: indErr } = await supabase
-          .from('indicators')
-          .select(`
-            *,
-            activities (
-              *,
-              documents (*)
-            ),
-            documents (*)
-          `)
-          .eq('standard_id', id)
-          .order('code', { ascending: true })
-        
-        if (indErr) throw indErr
+        // 2. ดึง Content
+        if (currentId) {
+            const { data: stdData, error: stdError } = await supabase
+              .from('standards')
+              .select(`*, indicators (*, topics (*, activities (*, documents (*))))`)
+              .eq('id', currentId)
+              .single()
 
-        // จัดเรียงข้อมูล
-        const sorted = inds?.map((ind: any) => ({
-            ...ind,
-            activities: ind.activities?.sort((a:any, b:any) => a.id - b.id), 
-            documents: ind.documents?.filter((d:any) => !d.activity_id) 
-        }))
-        setIndicators(sorted || [])
+            if (stdError) throw stdError
 
-      } catch (err: any) {
-        setErrorMsg(err.message)
-      } finally {
-        setLoading(false)
-      }
+            // Sorting
+            if (stdData) {
+              stdData.indicators.sort((a: any, b: any) => a.code.localeCompare(b.code, undefined, { numeric: true }))
+              stdData.indicators.forEach((ind: any) => {
+                ind.topics?.sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
+                ind.topics?.forEach((topic: any) => {
+                  topic.activities?.sort((a: any, b: any) => {
+                    const orderDiff = (a.order_index || 0) - (b.order_index || 0)
+                    if (orderDiff !== 0) return orderDiff
+                    return a.id - b.id
+                  })
+                })
+              })
+            }
+            setCurrentStandard(stdData)
+        }
+      } catch (err) { console.error(err) } 
+      finally { setLoading(false) }
     }
-
     fetchData()
-  }, [id])
+  }, [currentId])
 
-  // ฟังก์ชันสลับการแสดงผลอัลบั้ม
-  const toggleAlbum = (docId: number) => {
-    setExpandedAlbums(prev => ({ ...prev, [docId]: !prev[docId] }))
-  }
-
-  // --- ส่วนแสดงผล ---
-  if (loading) return <div className="p-10 text-center text-gray-500">⏳ กำลังโหลดข้อมูล...</div>
-  if (errorMsg || !standard) return (
-    <div className="p-10 text-center text-red-500">
-      <h2 className="text-xl font-bold">ไม่พบข้อมูล</h2>
-      <p className="text-sm mt-2">{errorMsg}</p>
-      <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline">กลับหน้าหลัก</Link>
-    </div>
-  )
-
+  // --- Render ---
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 md:px-8 font-sans">
-      <div className="max-w-5xl mx-auto">
-        
-        {/* Header */}
-        <Link href="/" className="inline-block mb-6 text-blue-600 hover:underline text-sm font-medium">&larr; กลับหน้าหลัก</Link>
-        
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 mb-8 border-l-4 border-l-blue-600">
-          <h1 className="text-2xl md:text-3xl font-bold text-blue-900 mb-2">{standard.name}</h1>
-          <p className="text-gray-600">รายละเอียดตัวบ่งชี้และร่องรอยหลักฐาน</p>
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row font-sans">
+      
+      {/* SIDEBAR */}
+      <aside className="w-full md:w-72 bg-white border-r border-gray-200 flex-shrink-0 md:min-h-screen">
+        <div className="p-6 border-b border-gray-100">
+          <h2 className="font-bold text-gray-800 text-lg">📁 รายการมาตรฐาน</h2>
         </div>
-
-        {/* Loop Indicators */}
-        <div className="space-y-8">
-          {indicators.map((ind) => (
-            <div key={ind.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="bg-gray-50 px-6 py-4 border-b border-gray-100 flex items-start gap-3">
-                <span className="bg-blue-600 text-white px-3 py-1 rounded-md font-bold text-sm mt-0.5 shadow-sm min-w-fit">
-                  {ind.code}
-                </span>
-                <h2 className="text-lg font-bold text-gray-800 leading-relaxed">{ind.name}</h2>
-              </div>
-
-              <div className="p-6">
-                {/* --- ส่วนแสดงหลักฐาน/ร่องรอย --- */}
-                {ind.activities && ind.activities.length > 0 ? (
-                    <div className="grid gap-6">
-                        {ind.activities.map((act: any) => (
-                            <div key={act.id} className="bg-white p-5 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition duration-200">
-                                <h3 className="text-lg font-bold text-gray-900 mb-2 border-b pb-2 flex items-center gap-2">
-                                    📂 {act.title}
-                                </h3>
-                                {act.description && <p className="text-gray-600 text-sm mb-4 leading-relaxed">{act.description}</p>}
-
-                                {/* รายการเอกสารในกิจกรรม */}
-                                <div className="space-y-3">
-                                    {act.documents?.map((doc: any) => (
-                                        <div key={doc.id}>
-                                            {/* กรณี Link หรือ PDF (แสดงแบบเดิม) */}
-                                            {doc.doc_type !== 'album' && (
-                                                <a 
-                                                    href={doc.file_url} 
-                                                    target="_blank"
-                                                    className="flex items-center gap-3 p-3 rounded-md bg-gray-50 border border-gray-100 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 transition group"
-                                                >
-                                                    <span className="text-xl">{doc.doc_type === 'link' ? '🔗' : '📄'}</span>
-                                                    <div className="flex-1 font-medium text-gray-800 group-hover:text-blue-700">{doc.title}</div>
-                                                    <span className="text-gray-400 text-sm group-hover:text-blue-500">เปิด &rarr;</span>
-                                                </a>
-                                            )}
-
-                                            {/* กรณี Album (แบบใหม่: คลิกเพื่อกาง) */}
-                                            {doc.doc_type === 'album' && (
-                                                <div className="border border-gray-200 rounded-md overflow-hidden bg-white">
-                                                    <button 
-                                                        onClick={() => toggleAlbum(doc.id)}
-                                                        className="w-full flex justify-between items-center p-3 bg-gray-50 hover:bg-blue-50 transition"
-                                                    >
-                                                        <div className="flex items-center gap-2 font-medium text-gray-800">
-                                                            <span>🖼️ {doc.title}</span>
-                                                            <span className="text-xs text-gray-500 bg-gray-200 px-2 py-0.5 rounded-full">
-                                                                {doc.gallery?.length || 0} รูป
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-xs font-bold text-blue-600 bg-white border border-blue-200 px-2 py-1 rounded">
-                                                            {expandedAlbums[doc.id] ? '🔼 ซ่อนรูปภาพ' : '🔽 ดูรูปภาพ'}
-                                                        </span>
-                                                    </button>
-                                                    
-                                                    {/* ส่วนแสดงรูป (จะโผล่มาเมื่อ expandedAlbums เป็น true) */}
-                                                    {expandedAlbums[doc.id] && doc.gallery && (
-                                                        <div className="p-3 border-t border-gray-200 bg-white animate-fade-in">
-                                                            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                                                                {doc.gallery.map((url: string, idx: number) => (
-                                                                    <a key={idx} href={url} target="_blank" className="aspect-square relative block overflow-hidden rounded border hover:opacity-90">
-                                                                        <img src={url} className="w-full h-full object-cover" loading="lazy" />
-                                                                    </a>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {(!act.documents || act.documents.length === 0) && <div className="text-gray-400 text-sm italic pl-2">- กำลังดำเนินการรวบรวมเอกสาร -</div>}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    ind.documents.length === 0 && <div className="text-center text-gray-400 py-6 italic border-2 border-dashed rounded-lg bg-gray-50">ยังไม่มีข้อมูลหลักฐาน/ร่องรอย</div>
-                )}
-
-                {/* เอกสารนอกกลุ่ม (ถ้ามี) */}
-                {ind.documents && ind.documents.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-gray-200">
-                        <h4 className="text-sm font-bold text-gray-500 mb-3 uppercase tracking-wide">เอกสารประกอบอื่นๆ</h4>
-                        <div className="grid md:grid-cols-2 gap-3">
-                            {ind.documents.map((doc: any) => (
-                                <a key={doc.id} href={doc.file_url} target="_blank" className="flex items-center gap-2 text-sm text-gray-600 bg-white border p-3 rounded hover:bg-gray-50 hover:text-blue-600 transition">
-                                    <span className="text-lg">{doc.doc_type === 'link' ? '🔗' : '📄'}</span>
-                                    <span className="truncate font-medium">{doc.title}</span>
-                                </a>
-                            ))}
-                        </div>
-                    </div>
-                )}
-              </div>
-            </div>
+        <nav className="p-4 space-y-2">
+          {standardsList.map((std) => (
+            <Link 
+              key={std.id} 
+              href={`/standard/${std.id}`}
+              className={`block px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                std.id === currentId 
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm' 
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              {std.name}
+            </Link>
           ))}
-        </div>
-      </div>
+          <Link href="/" className="block mt-6 px-4 py-2 text-center text-sm text-gray-500 hover:text-blue-600 border border-dashed border-gray-300 rounded-lg hover:border-blue-300">
+            ← กลับหน้าแรก
+          </Link>
+        </nav>
+      </aside>
+
+      {/* MAIN CONTENT (ปรับให้ชิดซ้าย) */}
+      {/* 1. เอา mx-auto ออก (เพื่อให้ชิดซ้าย) 
+          2. ปรับ max-w-5xl เป็น max-w-7xl (ให้กว้างขึ้น เต็มตาขึ้น)
+      */}
+      <main className="flex-1 p-4 md:p-8 lg:p-10 w-full max-w-7xl">
+        {loading ? (
+          <div className="py-20 pl-10"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4"></div><p className="text-gray-500 text-sm">กำลังโหลดข้อมูล...</p></div>
+        ) : !currentStandard ? (
+          <div className="py-20 pl-10 bg-white rounded-xl shadow-sm border border-gray-200"><p className="text-lg text-gray-400">เลือกมาตรฐานจากเมนูด้านซ้าย</p></div>
+        ) : (
+          <div className="animate-fade-in">
+            {/* Header มาตรฐาน */}
+            <div className="mb-8 border-b-4 border-blue-600 pb-4">
+              <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">Standard {currentStandard.id}</span>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{currentStandard.name}</h1>
+            </div>
+
+            <div className="space-y-10">
+              {currentStandard.indicators.map((ind: any) => (
+                <section key={ind.id} className="scroll-mt-20">
+                  {/* Indicator Title */}
+                  <div className="flex items-start gap-3 mb-5">
+                    <div className="bg-blue-600 text-white font-bold text-sm px-2.5 py-1 rounded shadow-sm shrink-0 mt-1">
+                      {ind.code}
+                    </div>
+                    <h2 className="text-lg md:text-xl font-bold text-gray-800 leading-tight py-0.5">{ind.name}</h2>
+                  </div>
+
+                  {/* Topics Area */}
+                  <div className="space-y-6 ml-0 md:ml-12">
+                    {ind.topics && ind.topics.length > 0 ? (
+                      ind.topics.map((topic: any) => (
+                        <div key={topic.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                          <div className="bg-gray-50 px-5 py-3 border-b border-gray-100">
+                            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">📌 {topic.title}</h3>
+                            {topic.description && <p className="text-gray-500 text-xs mt-1 ml-6">{topic.description}</p>}
+                          </div>
+
+                          <div className="divide-y divide-gray-100">
+                            {topic.activities && topic.activities.length > 0 ? (
+                              topic.activities.map((act: any) => (
+                                <div key={act.id} className="p-5 hover:bg-blue-50/30 transition-colors">
+                                  <div className="mb-3">
+                                    <h4 className="text-sm font-bold text-blue-900 mb-1 flex items-start gap-2">
+                                      <span className="text-blue-400">🔹</span>{act.title}
+                                    </h4>
+                                    {act.description && <p className="text-gray-600 text-xs ml-6">{act.description}</p>}
+                                  </div>
+
+                                  <div className="ml-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                                    {act.documents?.map((doc: any) => (
+                                      <div key={doc.id} className="col-span-1">
+                                        {doc.doc_type !== 'album' ? (
+                                          <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="group flex items-center gap-3 p-2.5 rounded-lg border border-gray-200 bg-white hover:border-blue-400 hover:shadow-md transition-all h-full">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${doc.doc_type === 'pdf' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-500'}`}>
+                                              {doc.doc_type === 'pdf' ? <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 2H7a2 2 0 00-2 2v15a2 2 0 002 2z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>}
+                                            </div>
+                                            <div className="min-w-0"><p className="text-sm font-medium text-gray-700 group-hover:text-blue-700 truncate">{doc.title}</p></div>
+                                          </a>
+                                        ) : (
+                                          <div className="bg-white rounded-lg border border-gray-200 p-2.5 h-full">
+                                            <div className="flex items-center gap-2 mb-2"><span className="text-base">📸</span><span className="text-xs font-bold text-gray-800 truncate">{doc.title}</span></div>
+                                            {doc.gallery && doc.gallery.length > 0 && (
+                                              <div className="grid grid-cols-4 gap-1 mb-2">
+                                                {doc.gallery.slice(0, 4).map((img: string, i: number) => (
+                                                  <div key={i} className="aspect-square rounded overflow-hidden bg-gray-100 relative"><img src={img} className="w-full h-full object-cover" />{i === 3 && doc.gallery.length > 4 && <div className="absolute inset-0 bg-black/50 flex items-center justify-center text-white text-[10px] font-bold">+{doc.gallery.length - 4}</div>}</div>
+                                                ))}
+                                              </div>
+                                            )}
+                                            <a href={doc.gallery?.[0] || '#'} target="_blank" rel="noopener noreferrer" className="block w-full text-center py-1 text-[10px] font-bold text-purple-600 bg-purple-50 rounded hover:bg-purple-100 transition-colors">เปิดอัลบั้ม</a>
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))
+                            ) : <div className="p-4 text-center text-gray-400 italic bg-white text-sm">ยังไม่มีข้อมูล</div>}
+                          </div>
+                        </div>
+                      ))
+                    ) : <div className="p-4 bg-yellow-50 text-yellow-800 rounded-lg border border-yellow-200 text-sm">กำลังปรับปรุงข้อมูล...</div>}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   )
 }
