@@ -132,12 +132,12 @@ export default function StandardPage() {
           <div className="animate-fade-in">
             {/* Header มาตรฐาน */}
             <div className="mb-8 border-b-4 border-blue-600 pb-4">
-              <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">Standard {currentStandard.id}</span>
+              <span className="text-blue-600 font-bold uppercase tracking-wider text-xs">Standard {currentStandard.code}</span>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{currentStandard.name}</h1>
             </div>
 
             {/* --- TABLE (Standard 1) --- */}
-            {currentStandard.id === 1 && (
+            {String(currentStandard.code) === '1' && (
               <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-6 mb-10">
                 <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                   📊 ผลลัพธ์คุณภาพของเด็กปฐมวัย <span className="text-sm font-normal text-gray-500">(เปรียบเทียบเป้าหมาย vs ผลการประเมิน)</span>
