@@ -72,7 +72,7 @@ export default function AdminDashboard() {
       const { data, error } = await supabase
         .from('standards')
         .select(`*, indicators (*, topics (*, activities (*, documents (*))))`)
-        .order('id')
+        .order('code')
 
       if (error) throw error
 

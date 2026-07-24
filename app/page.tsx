@@ -6,7 +6,7 @@ export default async function Home() {
   const { data: standards, error } = await supabase
     .from('standards')
     .select('*')
-    .order('id', { ascending: true })
+    .order('code', { ascending: true })
 
   // 2. ถ้ามี error ให้บอกเราหน่อย
   if (error) {

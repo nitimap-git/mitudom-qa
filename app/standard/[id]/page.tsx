@@ -34,7 +34,7 @@ export default function StandardPage() {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const { data: listData } = await supabase.from('standards').select('id, name, code').order('id')
+        const { data: listData } = await supabase.from('standards').select('id, name, code').order('code')
         setStandardsList(listData || [])
 
         if (currentId) {
