@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import ChildQualityResults from '../../components/ChildQualityResults'
 
 export default function StandardPage() {
   const params = useParams()
@@ -136,8 +137,10 @@ export default function StandardPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">{currentStandard.name}</h1>
             </div>
 
-            {/* --- TABLE (Standard 1) --- */}
-            {String(currentStandard.code) === '1' && (
+            {String(currentStandard.code) === '1' && <ChildQualityResults />}
+
+            {/* ตารางเดิมเก็บไว้ชั่วคราวเพื่ออ้างอิงข้อมูลก่อนย้ายเข้าฐานข้อมูล */}
+            {false && (
               <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-6 mb-10">
                 <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                   📊 ผลลัพธ์คุณภาพของเด็กปฐมวัย <span className="text-sm font-normal text-gray-500">(เปรียบเทียบเป้าหมาย vs ผลการประเมิน)</span>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import ChildQualityResultsManager from '../components/ChildQualityResultsManager'
 
 export default function AdminDashboard() {
   const router = useRouter()
@@ -314,6 +315,7 @@ export default function AdminDashboard() {
                     {dataTree.filter(std => std.id === activeTab).map(std => (
                         <div key={std.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
                             <div className="bg-blue-50 px-6 py-4 border-b border-blue-100"><h2 className="text-lg font-bold text-blue-800">{std.name}</h2></div>
+                            {String(std.code) === '1' && <ChildQualityResultsManager />}
                             <div className="divide-y divide-gray-100">
                                 {std.indicators.map((ind: any) => (
                                     <div key={ind.id} className="p-6">
