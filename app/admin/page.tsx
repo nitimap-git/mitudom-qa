@@ -65,6 +65,20 @@ export default function AdminDashboard() {
     return `${prefix}-${Date.now()}-${random}.${ext}`
   }
 
+  const getStoragePath = (indicator: any, activityId: number, originalName: string, fileType: string) => {
+    const standard = dataTree.find((std: any) =>
+      std.indicators?.some((ind: any) => ind.id === indicator?.id)
+    )
+    const cleanCode = (value: unknown) =>
+      String(value ?? 'unknown').replace(/[^a-zA-Z0-9._-]/g, '-')
+    const standardCode = cleanCode(standard?.code)
+    const indicatorCode = cleanCode(indicator?.code)
+    const prefix = `std-${standardCode}_ind-${indicatorCode}_act-${activityId}_${fileType}`
+    const fileName = getSafeFileName(originalName, prefix)
+
+    return `standard-${standardCode}/indicator-${indicatorCode}/activity-${activityId}/${fileName}`
+  }
+
   // --- FETCH DATA ---
   const fetchData = async () => {
     if (dataTree.length === 0) setLoading(true)
@@ -196,15 +210,17 @@ export default function AdminDashboard() {
           finalFileUrl = linkUrl
       } else if (uploadType === 'pdf') {
         if (!file) throw new Error("กรุณาเลือกไฟล์ PDF");
-        const name = getSafeFileName(file.name, 'pdf'); 
-        await supabase.storage.from('school_docs').upload(name, file);
-        finalFileUrl = supabase.storage.from('school_docs').getPublicUrl(name).data.publicUrl
+        const path = getStoragePath(selectedIndicator, selectedActivity.id, file.name, 'pdf')
+        const { error: uploadError } = await supabase.storage.from('school_docs').upload(path, file)
+        if (uploadError) throw uploadError
+        finalFileUrl = supabase.storage.from('school_docs').getPublicUrl(path).data.publicUrl
       } else if (uploadType === 'album') {
         if (!images || images.length === 0) throw new Error("กรุณาเลือกรูปภาพ");
         for (let i = 0; i < images.length; i++) {
-           const name = getSafeFileName(images[i].name, `img-${i}`); 
-           await supabase.storage.from('school_docs').upload(name, images[i]);
-           gallery.push(supabase.storage.from('school_docs').getPublicUrl(name).data.publicUrl)
+           const path = getStoragePath(selectedIndicator, selectedActivity.id, images[i].name, `img-${i}`)
+           const { error: uploadError } = await supabase.storage.from('school_docs').upload(path, images[i])
+           if (uploadError) throw uploadError
+           gallery.push(supabase.storage.from('school_docs').getPublicUrl(path).data.publicUrl)
         }
         finalFileUrl = gallery[0]
       }
@@ -236,13 +252,21 @@ export default function AdminDashboard() {
   }
   
   // Gallery Actions
-  const handleAddToAlbum = async (docId: number, currentGallery: string[], e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddToAlbum = async (
+    docId: number,
+    currentGallery: string[],
+    indicator: any,
+    activityId: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const newFiles = e.target.files; if (!newFiles?.length) return; if (!confirm(`เพิ่ม ${newFiles.length} รูป?`)) { e.target.value = ''; return }
     try {
         const newUrls: string[] = []
         for (let i = 0; i < newFiles.length; i++) {
-            const name = getSafeFileName(newFiles[i].name, `add-${i}`); await supabase.storage.from('school_docs').upload(name, newFiles[i]);
-            newUrls.push(supabase.storage.from('school_docs').getPublicUrl(name).data.publicUrl)
+            const path = getStoragePath(indicator, activityId, newFiles[i].name, `add-${i}`)
+            const { error: uploadError } = await supabase.storage.from('school_docs').upload(path, newFiles[i])
+            if (uploadError) throw uploadError
+            newUrls.push(supabase.storage.from('school_docs').getPublicUrl(path).data.publicUrl)
         }
         await supabase.from('documents').update({ gallery: [...(currentGallery||[]), ...newUrls] }).eq('id', docId)
         alert('✅ เพิ่มรูปแล้ว'); fetchData()
@@ -372,7 +396,7 @@ export default function AdminDashboard() {
                                                                                                         <button onClick={() => handleRemoveFromAlbum(doc.id, doc.gallery, idx)} className="absolute top-0 right-0 bg-red-600 text-white w-5 h-5 flex items-center justify-center text-xs shadow hover:bg-red-700" title="ลบรูป">✕</button>
                                                                                                     </div>
                                                                                                 ))}
-                                                                                                <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition text-gray-400 hover:text-blue-600 bg-white"><span className="text-xl font-bold">+</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleAddToAlbum(doc.id, doc.gallery, e)} /></label>
+                                                                                                <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-blue-50 hover:border-blue-400 transition text-gray-400 hover:text-blue-600 bg-white"><span className="text-xl font-bold">+</span><input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleAddToAlbum(doc.id, doc.gallery, ind, act.id, e)} /></label>
                                                                                             </div>
                                                                                         </div>
                                                                                     )}
