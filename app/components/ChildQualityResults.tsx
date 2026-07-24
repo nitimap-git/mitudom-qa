@@ -38,6 +38,13 @@ export default function ChildQualityResults() {
       yearRows.length ? yearRows.reduce((sum, row) => sum + Number(row[key]), 0) / yearRows.length : 0
     return { year, target: average('target'), result: average('result') }
   })
+  const pointString = (categoryCode: string, key: 'target' | 'result') =>
+    years.map((year, index) => {
+      const row = visibleRows.find(item => item.year === year && item.category_code === categoryCode)
+      const x = years.length === 1 ? 180 : 42 + (index * 286) / (years.length - 1)
+      const y = 126 - (Number(row?.[key] ?? 0) / 100) * 100
+      return `${x},${y}`
+    }).join(' ')
 
   if (loading) return <div className="mb-10 rounded-xl bg-white p-6 text-gray-500">กำลังโหลดผลลัพธ์...</div>
   if (!rows.length) return null
@@ -98,6 +105,58 @@ export default function ChildQualityResults() {
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-gray-400" />เป้าหมาย</span>
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-blue-600" />ผลประเมิน</span>
           </div>
+        </div>
+      </div>
+
+      <div className="border-t border-gray-200 bg-gray-50 px-5 py-6 md:px-6">
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">แนวโน้มพัฒนาการรายด้าน</h3>
+            <p className="mt-1 text-sm text-gray-600">เปรียบเทียบเป้าหมายและผลประเมินตามลำดับปี</p>
+          </div>
+          <div className="flex gap-4 text-xs text-gray-600">
+            <span className="flex items-center gap-2"><i className="h-0.5 w-6 border-t-2 border-dashed border-gray-500" />เป้าหมาย</span>
+            <span className="flex items-center gap-2"><i className="h-0.5 w-6 bg-blue-600" />ผลประเมิน</span>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          {categories.map(category => {
+            const categoryRows = years.map(year =>
+              visibleRows.find(row => row.year === year && row.category_code === category.category_code)
+            )
+            return (
+              <article key={category.category_code} className="rounded-xl border border-gray-200 bg-white p-4">
+                <h4 className="font-bold text-gray-800">{category.category_name}</h4>
+                <svg viewBox="0 0 360 160" role="img" aria-label={`กราฟแนวโน้ม${category.category_name}`} className="mt-3 h-auto w-full">
+                  {[0, 25, 50, 75, 100].map(value => {
+                    const y = 126 - value
+                    return (
+                      <g key={value}>
+                        <line x1="42" x2="328" y1={y} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                        <text x="34" y={y + 3} textAnchor="end" fontSize="9" fill="#6b7280">{value}</text>
+                      </g>
+                    )
+                  })}
+                  <polyline points={pointString(category.category_code, 'target')} fill="none" stroke="#6b7280" strokeWidth="2" strokeDasharray="5 4" />
+                  <polyline points={pointString(category.category_code, 'result')} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+                  {categoryRows.map((row, index) => {
+                    const x = years.length === 1 ? 180 : 42 + (index * 286) / (years.length - 1)
+                    const targetY = 126 - (Number(row?.target ?? 0) / 100) * 100
+                    const resultY = 126 - (Number(row?.result ?? 0) / 100) * 100
+                    return (
+                      <g key={years[index]}>
+                        <circle cx={x} cy={targetY} r="3" fill="white" stroke="#6b7280" strokeWidth="2" />
+                        <circle cx={x} cy={resultY} r="4" fill="#2563eb" stroke="white" strokeWidth="2" />
+                        <text x={x} y={resultY - 8} textAnchor="middle" fontSize="9" fontWeight="700" fill="#1d4ed8">{Number(row?.result ?? 0).toFixed(2)}</text>
+                        <text x={x} y="146" textAnchor="middle" fontSize="10" fill="#4b5563">{years[index]}</text>
+                      </g>
+                    )
+                  })}
+                </svg>
+              </article>
+            )
+          })}
         </div>
       </div>
     </section>
